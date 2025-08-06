@@ -47,3 +47,16 @@ import base64
 import binascii
 from Crypto import Random
 import os
+
+#################################
+# FUNCIÓN PARA DECIFRAR  EN GCM #
+#################################
+
+def decrypt_gcm(data, master_key):
+  key = binascii.unhexlify(master_key.encode('utf-8'))
+  data = base64.b64decode(data.encode('utf-8'))
+  nonce, tag = data[:12], data[-16:]
+  cipher = AES.new(key, AES.MODE_GCM, nonce)
+  decrypt_value = cipher.decrypt_and_verify(data[12:-16], tag)
+  return decrypt_value.decode('utf-8')
+
