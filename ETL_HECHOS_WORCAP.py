@@ -60,3 +60,18 @@ def decrypt_gcm(data, master_key):
   decrypt_value = cipher.decrypt_and_verify(data[12:-16], tag)
   return decrypt_value.decode('utf-8')
 
+######################################################################
+# CREDENCIALES Y CONEXIÓN A LA BASE DE DATOS DE WORKING CAPITAL PROD #
+######################################################################
+
+secret = Secrets.get_secret('worcap_analytics_prod')
+user = decrypt_gcm(secret['username'], secret['llave de cifrado'])
+password = decrypt_gcm(secret['password'], secret['llave de cifrado'])
+
+db = secret['dbname']
+host = secret['host']
+
+mongo_uri = "mongodb+srv://" + urllib.parse.quote_plus(user) + ":" + password + "@" + host + "/" + db  + "?retryWrites=true&w=majority&ssl=true&ssl_cert_reqs=CERT_NONE"
+
+client = MongoClient(mongo_uri)
+db = client[db]
