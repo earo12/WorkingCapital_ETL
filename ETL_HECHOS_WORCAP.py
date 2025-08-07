@@ -111,3 +111,92 @@ df_analitics =  df_analitics[['idCampaign','idClient','status']]
 df_analitics =  df_analitics.rename(columns={'status': 'tp_status_oferta'})
 
 df_campaign = df_analitics.merge(df_campaign, how='inner', left_on='idCampaign',right_on='_id' )
+
+def select_option(row):
+  """
+    FUNCION QUE RECIBE LA TABLA DE AMORTIZACION Y  EXTRAE EL PAGO DIARIO Y MONTO ESCOGIDO
+    
+  """
+  
+  if row['tp_status_campana'] ==  "ACEPTED" or row['tp_status_campana']  == 'ACCEPTED' or  row['tp_status_campana'] == 'FINISHED' or row['tp_status_campana'] == 'CANCEL' or  row['tp_status_campana'] == 'CANCELLED':
+    if pd.isnull(row['options']) or pd.isnull(row['optionChosen']):
+      return pd.Series([0,0])
+    else :
+      # obetengo la columna options
+      options = row['options']
+      # obtengo la opci
+      option_choosen = "{}".format(row['optionChosen'])
+      json_option = options[option_choosen]['1']
+      return pd.Series([json_option['pago'], json_option['pagoCapital'] + json_option['montoRestante']])
+    
+  return pd.Series([0,0])
+
+def to_data_frame(dict):
+  keys =  list(dict.keys())
+  
+  json_array = []
+  for i in range(0,len(keys)-1):
+    value = keys[i]
+    json_array.append(dict[keys[i]])
+    
+  return pd.DataFrame(json_array)
+
+def monto_total_credito(row):
+  if row['tp_status_campana'] ==  "ACEPTED" or row['tp_status_campana']  == 'ACCEPTED' or row['tp_status_campana'] == 'FINISHED' or  row['tp_status_campana'] == 'CANCEL' or row['tp_status_campana'] == 'CANCELLED':
+    if pd.isnull(row['options']) or pd.isnull(row['optionChosen']):
+      return pd.Series([0, 0])
+    else :
+      json_anortizacion = row['options'][str(row['optionChosen'])]
+
+      df_amortizacion = to_data_frame(json_anortizacion)
+
+      return pd.Series([sum(df_amortizacion['iva']) , sum(df_amortizacion['pagoInteres']) ])
+    
+  return pd.Series([0, 0])
+
+df_campaign['tp_status_campana'] = df_campaign['tp_status_campana'].apply(lambda x: x.replace('ACCEPTED', 'ACEPTED'))
+
+df_campaign[['iva', 'pago_interes']] = df_campaign[["tp_status_campana","options","optionChosen"]].apply(lambda x: monto_total_credito(x),axis=1 )
+
+df_campaign[['pago_diario','monto_escogido']] = df_campaign[["tp_status_campana","options","optionChosen"]].apply(lambda x: select_option(x),axis=1 )
+
+df_campaign['monto_total'] = df_campaign['monto_escogido'] + df_campaign['iva'] + df_campaign['pago_interes']
+
+#######################################################################################################################
+# CONSULTA DE LA CANTIDAD DE PAGOS QUE DEBIÓ HACER HASTA EL DÍA DE AYER  CADA RFC Y SU , PAGO DIARIO Y MONTO ESPERADO #
+#######################################################################################################################
+
+df_pagos_esperados = spark.sql("""     
+                                select  cd_campana,
+                                        max(monto_total) as pago_diario,
+                                        sum(monto_total) as ags_monto_esperado,
+                                        count(*) as agc_pagos_esperados
+
+                                from main.landing.pagos_working_capital                              
+                                where fh_pago <= current_date() + 1
+                                group by 1;
+                                        """).toPandas()
+                                                   
+df_pagos_esperados['cd_campana']  = df_pagos_esperados['cd_campana'].astype(str)      
+
+
+df_pagos_esperados_tp_pago = spark.sql("""
+                                        -- Establecer la zona horaria a 'America/Mexico_City'
+                                          
+
+                                                -- Realizar la consulta
+                                                SELECT
+                                                cd_campana,
+                                                tipo_pago AS tp_status,
+                                                COUNT(*) AS count
+                                                FROM
+                                                main.landing.pagos_working_capital
+                                                WHERE
+                                                fh_pago <= CURRENT_DATE() + 1
+                                                GROUP BY
+                                                1, 2;
+
+                                        """).toPandas()
+                                        
+df_pagos_esperados_tp_pago['cd_campana']  = df_pagos_esperados_tp_pago['cd_campana'].astype(str)      
+df_pagos_esperados_tp_pago = df_pagos_esperados_tp_pago.pivot(index=['cd_campana' ], columns=['tp_status'],values= 'count').reset_index().rename_axis(None, axis=1)
