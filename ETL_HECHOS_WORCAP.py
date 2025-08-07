@@ -111,3 +111,47 @@ df_analitics =  df_analitics[['idCampaign','idClient','status']]
 df_analitics =  df_analitics.rename(columns={'status': 'tp_status_oferta'})
 
 df_campaign = df_analitics.merge(df_campaign, how='inner', left_on='idCampaign',right_on='_id' )
+
+
+def select_option(row):
+  """
+    FUNCION QUE RECIBE LA TABLA DE AMORTIZACION Y  EXTRAE EL PAGO DIARIO Y MONTO ESCOGIDO
+    
+  """
+  
+  if row['tp_status_campana'] ==  "ACEPTED" or row['tp_status_campana']  == 'ACCEPTED' or  row['tp_status_campana'] == 'FINISHED' or row['tp_status_campana'] == 'CANCEL' or  row['tp_status_campana'] == 'CANCELLED':
+    if pd.isnull(row['options']) or pd.isnull(row['optionChosen']):
+      return pd.Series([0,0])
+    else :
+      # obetengo la columna options
+      options = row['options']
+      # obtengo la opci
+      option_choosen = "{}".format(row['optionChosen'])
+      json_option = options[option_choosen]['1']
+      return pd.Series([json_option['pago'], json_option['pagoCapital'] + json_option['montoRestante']])
+    
+  return pd.Series([0,0])
+
+def to_data_frame(dict):
+  keys =  list(dict.keys())
+  
+  json_array = []
+  for i in range(0,len(keys)-1):
+    value = keys[i]
+    json_array.append(dict[keys[i]])
+    
+  return pd.DataFrame(json_array)
+
+
+def monto_total_credito(row):
+  if row['tp_status_campana'] ==  "ACEPTED" or row['tp_status_campana']  == 'ACCEPTED' or row['tp_status_campana'] == 'FINISHED' or  row['tp_status_campana'] == 'CANCEL' or row['tp_status_campana'] == 'CANCELLED':
+    if pd.isnull(row['options']) or pd.isnull(row['optionChosen']):
+      return pd.Series([0, 0])
+    else :
+      json_anortizacion = row['options'][str(row['optionChosen'])]
+
+      df_amortizacion = to_data_frame(json_anortizacion)
+
+      return pd.Series([sum(df_amortizacion['iva']) , sum(df_amortizacion['pagoInteres']) ])
+    
+  return pd.Series([0, 0])
