@@ -75,3 +75,39 @@ mongo_uri = "mongodb+srv://" + urllib.parse.quote_plus(user) + ":" + password + 
 
 client = MongoClient(mongo_uri)
 db = client[db]
+
+### Consulta de la collection Campaign 
+df_campaign = pd.DataFrame(list(db.Campaign.aggregate([{'$match': {'creationDate': {'$gt': datetime(2023, 3, 8)}}},
+                                                       {"$project":{  "_id":1,
+                                                                      "cd_campana" : "$idCampaign",
+                                                                      "nu_plazo_minimo": "$minTerm",
+                                                                      "nu_plazo_maximo" : "$maxTerm",
+                                                                      "nu_tasa": "$rate",  
+                                                                      "tp_canal" : "$apiName",
+                                                                      "tp_status_campana" : "$status",
+                                                                      "fh_apertura_campaña" : "$start_campaign",
+                                                                      "fh_vigencia_campaña": "$end_campaign",  
+                                                                      "cd_rfc" : "$idClient",
+                                                                      "fh_creacion": "$creationLocale",  
+                                                                      "fh_actualizacion" : "$updatedLocal",
+                                                                      "fh_deposito" : '$dispersionDate',
+                                                                      "fh_envio" : '$sendDate',
+                                                                      "options": "$options",  
+                                                                      "cd_folio_dispersion" : "$folioDispersion",
+                                                                      "optionChosen" : "$optionChosen", 
+                                                                    
+                                                                         }
+                                                           
+                                                           }])))
+df_campaign['_id'] = df_campaign['_id'].astype(str) 
+
+## JOIN CON EL STATUS DE LA CAMPAÑA
+
+#######################################
+# AGREGAMOS EL STATUS DE CADA CAMPAÑA #
+#######################################
+df_analitics =   pd.DataFrame(list(db.Analitics.find({})))
+df_analitics =  df_analitics[['idCampaign','idClient','status']]
+df_analitics =  df_analitics.rename(columns={'status': 'tp_status_oferta'})
+
+df_campaign = df_analitics.merge(df_campaign, how='inner', left_on='idCampaign',right_on='_id' )
