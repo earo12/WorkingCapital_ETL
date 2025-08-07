@@ -152,6 +152,7 @@ def monto_total_credito(row):
 
       return pd.Series([sum(df_amortizacion['iva']) , sum(df_amortizacion['pagoInteres']) ])
     
+
   return pd.Series([0, 0])
 
 df_campaign['tp_status_campana'] = df_campaign['tp_status_campana'].apply(lambda x: x.replace('ACCEPTED', 'ACEPTED'))
