@@ -201,3 +201,16 @@ df_pagos_esperados_tp_pago = spark.sql("""
                                         
 df_pagos_esperados_tp_pago['cd_campana']  = df_pagos_esperados_tp_pago['cd_campana'].astype(str)      
 df_pagos_esperados_tp_pago = df_pagos_esperados_tp_pago.pivot(index=['cd_campana' ], columns=['tp_status'],values= 'count').reset_index().rename_axis(None, axis=1)
+
+## pagoS POR COMISION
+df_pagos_esperados_tp_pago['COMISSION'] = df_pagos_esperados_tp_pago['COMISSION'].fillna(0).astype(int)
+df_pagos_esperados_tp_pago['NORMAL'] = df_pagos_esperados_tp_pago['NORMAL'].fillna(0).astype(int)
+
+### RENOMBRADO DE COLUMNAS PARA LOS PAGOS  ESPERADOS
+nuevos_nombres_esperados = {'COMISSION': 'tickets_esperados_comision',  'NORMAL': 'tickets_pagos_esperados_normales'}
+df_pagos_esperados_tp_pago.rename(columns=nuevos_nombres_esperados, inplace=True)
+
+df_pagos_esperados_tp_pago['tickets_esperados_comision'] =  df_pagos_esperados_tp_pago['tickets_esperados_comision'].fillna(0).astype(int)
+df_pagos_esperados_tp_pago['tickets_pagos_esperados_normales']  = df_pagos_esperados_tp_pago[ 'tickets_pagos_esperados_normales'].fillna(0).astype(int)
+
+df_pagos_esperados = df_pagos_esperados.merge(df_pagos_esperados_tp_pago, how='inner',on ='cd_campana')
